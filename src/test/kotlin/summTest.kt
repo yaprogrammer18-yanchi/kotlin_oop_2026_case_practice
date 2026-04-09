@@ -3,6 +3,7 @@ import org.junit.jupiter.api.Assertions.*
 import example.summa
 
 class SummTest{
+
     @Test
     fun `test sum`(){
         val a = 10

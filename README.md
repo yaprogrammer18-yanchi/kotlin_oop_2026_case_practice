@@ -11,11 +11,11 @@
 
 
 #### Предметная диаграмма классов
-![Диаграмма](docs/object_diagram.png)
+![Диаграмма](docs/obj_diagram.png)
 
 
 
 
 
 #### Программная диаграмма классов
-![Диаграмма](docs/program_diagram.png)
+![Диаграмма](docs/pr_diagram.png)

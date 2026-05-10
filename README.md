@@ -35,7 +35,7 @@
 
 
 #### Диаграммы классов 
-
+```mermaid
 classDiagram
 %% ===== ENUMS =====
 class GameStatus {
@@ -200,7 +200,7 @@ FINISHED
     
     Card --> Nominal : has nominal
     Card --> Suit : has suit
-
+```
 
 ## Описание архитектуры
 

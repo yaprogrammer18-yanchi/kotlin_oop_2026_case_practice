@@ -224,9 +224,8 @@ class Game(val id: Int) {
         println(currentTurn?.toLogString()) ?: "Ошибка"
     }
 
-
     fun runGame() {
-        while (status == GameStatus.IN_PROGRESS) {
+        while (status == GameStatus.IN_PROGRESS && !isEmptyDeck()) {
             // отладочный вывод
             for (player in players) {
                 println("${player.name}: ${player.hand.joinToString { "${it.nominal.displayName} ${it.suit.displayName}" }}")
@@ -234,40 +233,80 @@ class Game(val id: Int) {
             // отладочный вывод
 
             runTurn()
+            // это если текущий turn не null,
             currentTurn?.let { historyOfTurns.add(it) }
 
-            // Если колода пустая — доигрываем ровно один финальный круг
-            if (isEmptyDeck()) {
-                val startIndex = (currentAskerPlayerIndex + 1) % players.size
-                for (i in 0 until players.size) {
-                    val askerIdx = (startIndex + i) % players.size
-                    val asker = players[askerIdx]
+        }
 
-                    if (asker.hand.isEmpty()) {
-                        continue
-                    }
-                    currentAskerPlayerIndex = askerIdx
+        if (status == GameStatus.IN_PROGRESS){
+            runFinalRound()
+        }
 
-                    var targetIdx = (askerIdx + 1) % players.size
-                    var checked = 0
-                    while (players[targetIdx].hand.isEmpty() && checked < players.size) {
-                        targetIdx = (targetIdx + 1) % players.size
-                        checked++
-                    }
-                    if (checked < players.size) {
-                        currentTargetPlayerIndex = targetIdx
-                        runTurn()
-                        currentTurn?.let { historyOfTurns.add(it) }
-                    }
+        finishGame()
+    }
+
+    private fun runFinalRound() {
+        println("\n=== 🏁 ФИНАЛЬНЫЙ РАУНД ===")
+
+        // Запоминаем стартовую позицию, чтобы не зависеть от изменений внутри runTurn()
+        val startIndex = (currentAskerPlayerIndex + 1) % players.size
+
+        for (i in 0 until players.size) {
+            if (status != GameStatus.IN_PROGRESS) break
+
+            val askerIdx = (startIndex + i) % players.size
+            val asker = players[askerIdx]
+
+            // Пропускаем игроков без карт
+            if (asker.hand.isEmpty()) {
+                println("➤ ${asker.name} пропускает (нет карт)")
+                continue
+            }
+
+            // Ищем цель: следующий игрок с картами (по кругу, кроме себя)
+            var targetIdx: Int? = null
+            for (j in 1 until players.size) {
+                val candidate = (askerIdx + j) % players.size
+                if (players[candidate].hand.isNotEmpty()) {
+                    targetIdx = candidate
+                    break
                 }
             }
+
+            // Если есть цель — делаем ход
+            if (targetIdx != null) {
+                println("➤ Финальный ход: ${asker.name} → ${players[targetIdx].name}")
+                // Временно устанавливаем индексы для runTurn()
+                val savedAsker = currentAskerPlayerIndex
+                val savedTarget = currentTargetPlayerIndex
+
+                currentAskerPlayerIndex = askerIdx
+                currentTargetPlayerIndex = targetIdx
+
+                runTurn()
+                currentTurn?.let { historyOfTurns.add(it) }
+
+                // Восстанавливаем индексы (опционально, если они ещё понадобятся)
+                currentAskerPlayerIndex = savedAsker
+                currentTargetPlayerIndex = savedTarget
+            } else {
+                println("➤ ${asker.name} пропускает (не у кого спрашивать)")
+            }
         }
-        // победитель
+    }
+
+    private fun finishGame() {
         val maxBoxes = players.maxOfOrNull { it.quantityOfBoxes } ?: 0
         winner = players.firstOrNull { it.quantityOfBoxes == maxBoxes }
-        println("Победил ${winner}")
+
+        println("Игра окончена!")
+        println("Результаты:")
+        players.forEach { p ->
+            println("  ${p.name}: ${p.quantityOfBoxes} сундучков")
+        }
+        println("Победитель: ${winner?.name ?: "Ничья"}")
+
         status = GameStatus.FINISHED
-        return
     }
 }
 
@@ -284,7 +323,7 @@ fun main() {
     // Все карты для колоды (16 карт для двух игроков по 4 карты + запас)
     allCards.add(Card(Nominal.QUEEN, Suit.HEARTS))
     allCards.add(Card(Nominal.QUEEN, Suit.SPADES))
-    allCards.add(Card(Nominal.KING, Suit.CLUBS))
+    allCards.add(Card(Nominal.QUEEN, Suit.CLUBS))
     allCards.add(Card(Nominal.SIX, Suit.DIAMONDS))
     allCards.add(Card(Nominal.QUEEN, Suit.DIAMONDS))
     allCards.add(Card(Nominal.KING, Suit.HEARTS))

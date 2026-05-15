@@ -13,7 +13,9 @@ class Deck {
         val cardsToGive = mutableListOf<Card>()
 
         if (quantity >= size){
-            return cards.toList()
+            cardsToGive.addAll(cards)
+            cards.clear()
+            return cardsToGive
         }
         for (i in 1 .. quantity){
             cardsToGive.add(cards.removeAt(0))

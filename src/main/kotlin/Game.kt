@@ -9,7 +9,8 @@ enum class GameStatus {
 
 
 class Game(val id: Int) {
-    private var status = GameStatus.WAITING
+    var status = GameStatus.WAITING
+    private set
     val players = mutableListOf<Player>()
     var mainDeck: Deck = Deck()
     private set
@@ -231,13 +232,13 @@ class Game(val id: Int) {
                 println("${player.name}: ${player.hand.joinToString { "${it.nominal.displayName} ${it.suit.displayName}" }}")
             }
             // отладочный вывод
+
             runTurn()
             currentTurn?.let { historyOfTurns.add(it) }
 
             // Если колода пустая — доигрываем ровно один финальный круг
             if (isEmptyDeck()) {
                 val startIndex = (currentAskerPlayerIndex + 1) % players.size
-
                 for (i in 0 until players.size) {
                     val askerIdx = (startIndex + i) % players.size
                     val asker = players[askerIdx]
@@ -245,7 +246,6 @@ class Game(val id: Int) {
                     if (asker.hand.isEmpty()) {
                         continue
                     }
-
                     currentAskerPlayerIndex = askerIdx
 
                     var targetIdx = (askerIdx + 1) % players.size

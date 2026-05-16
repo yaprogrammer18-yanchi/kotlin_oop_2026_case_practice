@@ -5,7 +5,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
-@DisplayName("Тесты игры (Game) - юнит")
+@DisplayName("Тесты игры (Game.kt) - юнит")
 class GameUnitTest {
 
     @Nested

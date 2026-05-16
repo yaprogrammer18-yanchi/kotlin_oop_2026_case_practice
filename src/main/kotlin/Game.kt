@@ -3,39 +3,39 @@ package boxGame
 enum class GameStatus {
     WAITING,
     IN_PROGRESS,
-    PAUSED,
     FINISHED
 }
 
-
 class Game(val id: Int) {
     var status = GameStatus.WAITING
-    private set
+        private set
     val players = mutableListOf<Player>()
     var mainDeck: Deck = Deck()
-    private set
+        private set
     private var currentAskerPlayerIndex: Int = 0
     private var currentTargetPlayerIndex: Int = 0
     private var currentTurn: Turn? = null
     var winner: Player? = null
-    private set
+        private set
     var historyOfTurns = mutableListOf<Turn>()
-    private set
+        private set
     private var currentDialog: Dialog? = null
 
     fun addPlayer(player: Player) {
         players.add(player)
     }
-    fun isEmptyDeck(): Boolean{
+
+    fun isEmptyDeck(): Boolean {
         return mainDeck.deckIsEmpty()
     }
-    fun forceEndGame(){
+
+    fun forceEndGame() {
         status = GameStatus.FINISHED
     }
 
     // извне формируется список карт и передается в колоду
     // тут все карты, которые получает игрок будут автоматически добавляться к нему из этой колоды
-    fun initialiseNewDeck(cards: MutableList<Card>){
+    fun initialiseNewDeck(cards: MutableList<Card>) {
         mainDeck.initialiseDeck(cards)
     }
 
@@ -60,7 +60,7 @@ class Game(val id: Int) {
         status = GameStatus.IN_PROGRESS
     }
 
-    fun runTurn() {
+    fun runTurn(currentAsker: Player, currentTarget: Player) {
         if (status != GameStatus.IN_PROGRESS) {
             println("Игра не активна")
             return
@@ -71,30 +71,8 @@ class Game(val id: Int) {
         }
 
         // ИНИЦИАЛИЗАЦИЯ ХОДА
-
-        currentAskerPlayerIndex = currentTargetPlayerIndex
-        currentTargetPlayerIndex = (currentTargetPlayerIndex + 1) % players.size
-
-        val currentAsker = players[currentAskerPlayerIndex]
-        val currentTarget = players[currentTargetPlayerIndex]
-        println("\n Следующий (текущий) ход: ${currentAsker.name} → ${currentTarget.name}")
+        println("\n Текущий ход: ${currentAsker.name} → ${currentTarget.name}")
         currentDialog = Dialog(currentAsker, currentTarget)
-
-
-        // ЕСЛИ у спрашивающего нет карт, добрать 4 или оставшиеся из колоды
-        if (currentAsker.hand.isEmpty() && !mainDeck.deckIsEmpty()) {
-            val drawnCards = mainDeck.getCards(4)
-            currentAsker.addCardsInHand(drawnCards)
-        }
-
-        // Если у спрашивающего нет карт и колода пуста - пропуск хода
-        if (currentAsker.hand.isEmpty()) {
-            return
-        }
-
-        // Если у отвечающего нет карт
-
-
 
         // НОМИНАЛ
 
@@ -108,12 +86,12 @@ class Game(val id: Int) {
 
         fun enterAnswerNominal(): DialogState {
             println("\n--- ОТВЕТ (номинал) ---")
-            val input = readLine()?.uppercase() ?: return DialogState.ERROR // дописать что произойдет, если ничего не ввела
+            val input =
+                readLine()?.uppercase() ?: return DialogState.ERROR // дописать что произойдет, если ничего не ввела
             val answer = Answer.fromDisplayName(input)
             val state = currentDialog?.answerNominal(answer) ?: return DialogState.ERROR
             return state
         }
-
 
         // КОЛИЧЕСТВО
 
@@ -128,7 +106,8 @@ class Game(val id: Int) {
 
         fun enterAnswerQuantity(): DialogState {
             println("\n--- ОТВЕТ (количество) ---")
-            val input = readLine()?.uppercase() ?: return DialogState.ERROR // дописать что произойдет, если ничего не ввела
+            val input =
+                readLine()?.uppercase() ?: return DialogState.ERROR // дописать что произойдет, если ничего не ввела
             val answer = Answer.fromDisplayName(input)
             val state = currentDialog?.answerQuantity(answer) ?: return DialogState.ERROR
             return state
@@ -138,7 +117,7 @@ class Game(val id: Int) {
 
         // проверку на некорректные масти делать не буду - возможно сделаю просто кнопочки с мастями, которые просто
         // можно будет нажимать
-        fun enterQuestionSuits(): DialogState{
+        fun enterQuestionSuits(): DialogState {
             println("\n--- ВОПРОС (масти) ---")
             var input = readLine()
             // Проверка, что ввод не пустой
@@ -148,72 +127,74 @@ class Game(val id: Int) {
             }
             val suitsStr = input.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
             val arr = mutableListOf<Suit?>()
-            for (suit in suitsStr){
+            for (suit in suitsStr) {
                 arr.add(Suit.fromDisplayName(suit))
             }
             val suits = arr.filterNotNull()
             return currentDialog?.questionSuits(suits) ?: return DialogState.ERROR
         }
 
-        fun enterAnswerSuits(): DialogState{
+        fun enterAnswerSuits(): DialogState {
             println("\n--- ОТВЕТ (масти) ---")
-            val input = readLine()?.uppercase() ?: return DialogState.ERROR // дописать что произойдет, если ничего не ввела
+            val input =
+                readLine()?.uppercase() ?: return DialogState.ERROR // дописать что произойдет, если ничего не ввела
             val answer = Answer.fromDisplayName(input)
             val state = currentDialog?.answerSuits(answer) ?: return DialogState.ERROR
             return state
         }
 
-
         // МЕХАНИЗМ ХОДА:
 
         var state = enterQuestionNominal()
-        while (state == DialogState.ASK_AGAIN){
+        while (state == DialogState.ASK_AGAIN) {
             println("Блеф или ошибка!")
             state = enterQuestionNominal()
 
         }
         state = enterAnswerNominal()
-        while (state == DialogState.ANSWER_AGAIN){
+        while (state == DialogState.ANSWER_AGAIN) {
             println("Блеф или ошибка!")
             state = enterAnswerNominal()
         }
 
-        if (state == DialogState.ASK_QUANTITY){
+        if (state == DialogState.ASK_QUANTITY) {
             // игрок может сказать любое кол-во (хоть 7 карт одного номинала)
+            // хотя скорее всего в гуи я просто сделаю выбор из 4-х карт:)
             state = enterQuestionQuantity()
             // тут в любом случает будет ANSWER_QUANTITY
             state = enterAnswerQuantity()
-            while (state == DialogState.ANSWER_AGAIN){
+            while (state == DialogState.ANSWER_AGAIN) {
                 println("Блеф или ошибка!")
                 state = enterAnswerQuantity()
             }
         }
 
-        if (state == DialogState.ASK_SUITS){
+        // КОНЕЧНЫЙ АВТОМАТ
+        if (state == DialogState.ASK_SUITS) {
             state = enterQuestionSuits()
-            while (state == DialogState.ASK_AGAIN){
+            while (state == DialogState.ASK_AGAIN) {
                 println("Блеф или ошибка!")
                 state = enterQuestionSuits()
             }
 
             state = enterAnswerSuits()
-            while (state == DialogState.ANSWER_AGAIN){
+            while (state == DialogState.ANSWER_AGAIN) {
                 println("Блеф или ошибка!")
                 state = enterAnswerSuits()
             }
 
             // ПЕРЕДАЧА УГАДАННЫХ КАРТ
 
-            if (state == DialogState.GUESSED){
-                val cards =  currentDialog?.guessedCards ?: return
+            if (state == DialogState.GUESSED) {
+                val cards = currentDialog?.guessedCards ?: return
                 currentTarget.removeCardsFromHand(cards)
                 currentAsker.addCardsInHand(cards)
             }
         }
 
         // ЕСЛИ НЕ УГАДАЛ - ВЗЯТЬ КАРТУ ИЗ КОЛОДЫ
-        if (state == DialogState.NOT_GUESSED){
-            if (!mainDeck.deckIsEmpty()){
+        if (state == DialogState.NOT_GUESSED) {
+            if (!mainDeck.deckIsEmpty()) {
                 val CardFromDeck = mainDeck.getCards(1)
                 currentAsker.addCardsInHand(CardFromDeck)
             }
@@ -221,6 +202,8 @@ class Game(val id: Int) {
 
         // ФОРМИРОВАНИЕ ИСТОРИИ ХОДА
         currentTurn = Turn(dialog = currentDialog)
+
+        // отладочный вывод
         println(currentTurn?.toLogString()) ?: "Ошибка"
     }
 
@@ -232,23 +215,59 @@ class Game(val id: Int) {
             }
             // отладочный вывод
 
-            runTurn()
+
+            currentAskerPlayerIndex = currentTargetPlayerIndex
+            currentTargetPlayerIndex = (currentTargetPlayerIndex + 1) % players.size
+            val currentAsker = players[currentAskerPlayerIndex]
+            var currentTarget = players[currentTargetPlayerIndex]
+
+
+            // ЕСЛИ у спрашивающего нет карт, добрать 4 или оставшиеся из колоды
+            if (currentAsker.hand.isEmpty() && !mainDeck.deckIsEmpty()) {
+                val drawnCards = mainDeck.getCards(4)
+                currentAsker.addCardsInHand(drawnCards)
+            }
+
+            // Если у спрашивающего нет карт и колода пуста - пропуск хода
+            if (currentAsker.hand.isEmpty()) {
+                continue
+            }
+
+            // если у отвечающего нет кард, то надо чтобы текущий игрок спросил у кого-то у кого есть карты
+            if (currentTarget.hand.isEmpty()) {
+                var found = false
+                for (i in 1 until players.size) {
+                    val candidateIdx = (currentTargetPlayerIndex + i) % players.size
+                    // Ищем игрока с картами, который не является спрашивающим
+                    if (candidateIdx != currentAskerPlayerIndex && players[candidateIdx].hand.isNotEmpty()) {
+                        currentTargetPlayerIndex = candidateIdx
+                        currentTarget = players[candidateIdx]
+                        found = true
+                        break
+                    }
+                }
+                // Если никого не нашли — не у кого спрашивать, пропускаем ход
+                if (!found) {
+                    continue
+                }
+            }
+
+            runTurn(currentAsker, currentTarget)
             // это если текущий turn не null,
             currentTurn?.let { historyOfTurns.add(it) }
-
         }
 
-        if (status == GameStatus.IN_PROGRESS){
+        // если колода опустела
+        if (status == GameStatus.IN_PROGRESS) {
             runFinalRound()
         }
-
         finishGame()
     }
 
     private fun runFinalRound() {
-        println("\n=== 🏁 ФИНАЛЬНЫЙ РАУНД ===")
+        println("ФИНАЛЬНЫЙ РАУНД")
 
-        // Запоминаем стартовую позицию, чтобы не зависеть от изменений внутри runTurn()
+        // Запоминаем стартовую позицию, от которой пойдем последний круг, чтобы не зависеть от изменений внутри
         val startIndex = (currentAskerPlayerIndex + 1) % players.size
 
         for (i in 0 until players.size) {
@@ -259,7 +278,6 @@ class Game(val id: Int) {
 
             // Пропускаем игроков без карт
             if (asker.hand.isEmpty()) {
-                println("➤ ${asker.name} пропускает (нет карт)")
                 continue
             }
 
@@ -275,7 +293,7 @@ class Game(val id: Int) {
 
             // Если есть цель — делаем ход
             if (targetIdx != null) {
-                println("➤ Финальный ход: ${asker.name} → ${players[targetIdx].name}")
+                println("Ход: ${asker.name} → ${players[targetIdx].name}")
                 // Временно устанавливаем индексы для runTurn()
                 val savedAsker = currentAskerPlayerIndex
                 val savedTarget = currentTargetPlayerIndex
@@ -283,14 +301,16 @@ class Game(val id: Int) {
                 currentAskerPlayerIndex = askerIdx
                 currentTargetPlayerIndex = targetIdx
 
-                runTurn()
+                val currentAsker = players[currentAskerPlayerIndex]
+                var currentTarget = players[currentTargetPlayerIndex]
+
+                runTurn(currentAsker, currentTarget)
                 currentTurn?.let { historyOfTurns.add(it) }
 
-                // Восстанавливаем индексы (опционально, если они ещё понадобятся)
                 currentAskerPlayerIndex = savedAsker
                 currentTargetPlayerIndex = savedTarget
             } else {
-                println("➤ ${asker.name} пропускает (не у кого спрашивать)")
+                println("${asker.name} пропускает (не у кого спрашивать)")
             }
         }
     }
@@ -298,22 +318,20 @@ class Game(val id: Int) {
     private fun finishGame() {
         val maxBoxes = players.maxOfOrNull { it.quantityOfBoxes } ?: 0
         winner = players.firstOrNull { it.quantityOfBoxes == maxBoxes }
-
         println("Игра окончена!")
         println("Результаты:")
         players.forEach { p ->
             println("  ${p.name}: ${p.quantityOfBoxes} сундучков")
         }
         println("Победитель: ${winner?.name ?: "Ничья"}")
-
         status = GameStatus.FINISHED
     }
-}
 
+}
 // небольшой примерчик, можно прям поиграть
 fun main() {
     val players = mutableListOf(
-        Player("Анна"),
+        Player("Виолетта"),
         Player("Борис")
     )
 
@@ -329,6 +347,7 @@ fun main() {
     allCards.add(Card(Nominal.KING, Suit.HEARTS))
     allCards.add(Card(Nominal.KING, Suit.SPADES))
     allCards.add(Card(Nominal.SEVEN, Suit.CLUBS))
+    allCards.add(Card(Nominal.EIGHT, Suit.CLUBS))
 
     // Показываем карты в колоде
     println("\n--- КОЛОДА ---")
@@ -348,3 +367,6 @@ fun main() {
     }
     game.runGame()
 }
+
+
+// сделать диалог state отдельными классами со своей логикой

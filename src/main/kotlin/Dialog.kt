@@ -1,5 +1,4 @@
 package boxGame
-
 enum class DialogState {
     // Номинал
     ASK_NOMINAL,
@@ -21,7 +20,25 @@ enum class DialogState {
     ASK_AGAIN,
     ANSWER_AGAIN,
     ERROR_QUESTION,
-    ERROR
+    ERROR;
+
+    // Метод для отображения состояния
+    fun displayMessage(dialog: Dialog): String {
+        return when (this) {
+            ASK_NOMINAL -> "Какой номинал карт вы спрашиваете?"
+            ANSWER_NOMINAL -> "${dialog.target.name}, у вас есть карты номинала ${dialog.assumeNominal?.displayName ?: "?"}? (YES/NO)"
+            ASK_QUANTITY -> "Сколько карт номинала ${dialog.assumeNominal?.displayName} у вас есть?"
+            ANSWER_QUANTITY -> "${dialog.target.name}, действительно ли у вас ${dialog.assumeQuantity} карт номинала ${dialog.assumeNominal?.displayName}? (YES/NO)"
+            ASK_SUITS -> "Какие масти карт номинала ${dialog.assumeNominal?.displayName} вы угадываете? (введите масти через пробел)"
+            ANSWER_SUITS -> "${dialog.target.name}, у вас есть карты мастей ${dialog.assumeSuits.joinToString { it.displayName }}? (YES/NO)"
+            GUESSED -> "✓ УГАДАНО! Карты передаются ${dialog.asker.name}"
+            NOT_GUESSED -> "✗ НЕ УГАДАНО! ${dialog.asker.name} берёт карту из колоды"
+            ASK_AGAIN -> "Блеф!"
+            ANSWER_AGAIN -> "Блеф!"
+            ERROR_QUESTION -> "⚠️ Ошибка вопроса"
+            ERROR -> "⚠️ Критическая ошибка"
+        }
+    }
 }
 
 enum class Answer(val displayName: String){
@@ -34,7 +51,6 @@ enum class Answer(val displayName: String){
     }
 
 }
-
 
 class Dialog(var asker: Player, var target: Player) {
     var assumeNominal: Nominal? = null
@@ -86,11 +102,9 @@ class Dialog(var asker: Player, var target: Player) {
     }
 
     fun checkNominalValidation(player: Player): Boolean{
-
         val arr: List<Card> = player.getCardsByNominal(assumeNominal!!)
         return arr.isNotEmpty()
     }
-
 
     // РАБОТА С КОЛИЧЕСТВОМ
     fun questionQuantity(quantity: Int): DialogState {
@@ -162,7 +176,6 @@ class Dialog(var asker: Player, var target: Player) {
             guessedSuits = false
             return DialogState.NOT_GUESSED
         }
-
         return DialogState.ANSWER_AGAIN
     }
 
@@ -190,3 +203,19 @@ class Dialog(var asker: Player, var target: Player) {
     }
 
 }
+
+//// написать в чате, обсудить разделение диалога
+//
+//// ТО ЧТО   вводится через консоль вынести в view model то, как то, что отображатеся вляет на игровую логику
+//// то что вернется обратно во view model на это посмотрит view и отрисует себя
+//
+//// прочитать про
+//
+//// рассказ 23-го числа: про Game - Dialog - Dialog как работает внутри себя
+//// получается сделать Dialog еще одним движком, то есть разделить на три класса, отдельно каждый для номинала, кол-ва и масти
+//// все это наследники одного интерфейса, надо что-то подумать с аргументами, ведь они разные
+//// а как вариант - просто контейнер сделать, который можно передавать и каждый класс пусть берет оттуда те поля, которые ему
+//// нужны
+//// подкласс с полями?
+
+// в принципе можно отдельно прописывать уже GUI, а диалог разделить потом

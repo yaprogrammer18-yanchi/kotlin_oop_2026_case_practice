@@ -6,7 +6,7 @@ enum class GameStatus {
     FINISHED
 }
 
-class Game(val id: Int) {
+class Game(var id: Int) {
     var status = GameStatus.WAITING
     val players = mutableListOf<Player>()
     var mainDeck: Deck = Deck()

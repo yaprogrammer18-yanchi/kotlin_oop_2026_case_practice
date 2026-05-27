@@ -104,5 +104,7 @@ class Dialog(
         } else emptyList()
     }
 
+    fun getCurrentLog(): String = currentPhase?.toLogString() ?: "Ход завершён"
+
     fun getGuessedCards(): List<Card> = resultCards
 }

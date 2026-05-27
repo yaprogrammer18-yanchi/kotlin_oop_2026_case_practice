@@ -18,7 +18,7 @@ interface GameView {
     fun setListener(listener: GameViewListener)
     fun close()
     fun updateGameState(players: List<Player>, currentAsker: Player?, currentTarget: Player?)
-    fun updateDeckSize(deckSize: Int)  // ← добавить
+    fun updateDeckSize(deckSize: Int)
     fun clearGameState()
 }
 
@@ -35,7 +35,7 @@ class GameViewImpl : JFrame(), GameView {
     private lateinit var cardsListModel: DefaultListModel<String>
     private lateinit var statusLabel: JLabel
     private lateinit var playersPanel: JPanel
-    private lateinit var deckSizeLabel: JLabel  // ← для отображения карт в колоде
+    private lateinit var deckSizeLabel: JLabel
 
     init {
         initFrame()
@@ -91,7 +91,6 @@ class GameViewImpl : JFrame(), GameView {
         createStatsPanel()
         createHistoryPanel()
     }
-
 
     override fun updateGameState(players: List<Player>, currentAsker: Player?, currentTarget: Player?) {
         if (currentAsker != null && currentTarget != null) {
@@ -336,7 +335,6 @@ class GameViewImpl : JFrame(), GameView {
             listener?.onGameInitialized(playerNames, cards)
         }
         panel.add(startButton, gbc)
-
         mainPanel.add(panel, "setup")
     }
 
@@ -523,6 +521,9 @@ class GameViewImpl : JFrame(), GameView {
         statusLabel.text = " "
         registryButton.addActionListener { listener?.onMenuRequested() }
 
+        val historyButton = createMenuButton("📜 История игр", Color(150, 180, 200))
+        historyButton.addActionListener { listener?.onHistoryRequested() }
+
         val exitButton = createMenuButton("🚪 Выход", Color(200, 100, 100))
         exitButton.addActionListener { close() }
 
@@ -532,7 +533,10 @@ class GameViewImpl : JFrame(), GameView {
         panel.add(statsButton, gbc)
         gbc.gridy = 3
         panel.add(exitButton, gbc)
-
+        gbc.gridy = 4
+        panel.add(historyButton, gbc)
+        gbc.gridy = 5
+        panel.add(exitButton, gbc)
         mainPanel.add(panel, "menu")
     }
 
@@ -563,6 +567,22 @@ class GameViewImpl : JFrame(), GameView {
         mainPanel.add(panel, "stats")
     }
 
+    private fun createHistoryPanel() {
+        val panel = JPanel(BorderLayout())
+
+        historyListModel = DefaultListModel()
+        val historyList = JList(historyListModel)
+        historyList.font = Font("Monospaced", Font.PLAIN, 12)
+        panel.add(JScrollPane(historyList), BorderLayout.CENTER)
+
+        val closeButton = JButton("🔙 Назад в меню")
+        closeButton.font = Font("Arial", Font.BOLD, 14)
+        closeButton.addActionListener { showMenu() }
+        panel.add(closeButton, BorderLayout.SOUTH)
+
+        mainPanel.add(panel, "history")
+    }
+
     override fun showPlayerRegistry(stats: List<PlayerStats>) {
         val text = buildString {
             append("🏆 РЕЕСТР ИГРОКОВ 🏆\n\n")
@@ -578,22 +598,6 @@ class GameViewImpl : JFrame(), GameView {
         }
         statsTextArea.text = text
         switchCard("stats")
-    }
-
-    private fun createHistoryPanel() {
-        val panel = JPanel(BorderLayout())
-
-        historyListModel = DefaultListModel()
-        val historyList = JList(historyListModel)
-        historyList.font = Font("Monospaced", Font.PLAIN, 12)
-        panel.add(JScrollPane(historyList), BorderLayout.CENTER)
-
-        val closeButton = JButton("🔙 Назад в меню")
-        closeButton.font = Font("Arial", Font.BOLD, 14)
-        closeButton.addActionListener { showMenu() }
-        panel.add(closeButton, BorderLayout.SOUTH)
-
-        mainPanel.add(panel, "history")
     }
 
     override fun setListener(listener: GameViewListener) {
@@ -651,5 +655,7 @@ class GameViewImpl : JFrame(), GameView {
 
     private fun switchCard(name: String) {
         cardLayout.show(mainPanel, name)
+        mainPanel.revalidate()
+        mainPanel.repaint()
     }
 }

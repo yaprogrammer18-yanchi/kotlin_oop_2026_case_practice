@@ -9,14 +9,13 @@ interface GameViewListener {
     fun onAnswerSubmitted(answer: Answer)
     fun onGameInitialized(playerNames: List<String>, cards: MutableList<Card>)
     fun onMenuRequested()
+    fun onHistoryRequested()
 }
 
 class GamePresenter(
     private val view: GameView,
-    private val playerRegistry: PlayerRegistry
+    private val repository: GameRepository
 ) : GameViewListener {
-
-    // пока у каждой игры id = 1, так как пока нет баз данных
 
     private val game: Game = Game(1)
     private var currentDialog: Dialog? = null
@@ -73,7 +72,6 @@ class GamePresenter(
         var target = game.players[currentTargetIndex]
 
         // Добираем карты спрашивающему, если нужно
-        // функция добора карт спрашивающему
         if (asker.hand.isEmpty() && !game.isEmptyDeck()) {
             val drawn = game.mainDeck.getCards(4)
             updateDeckDisplay()
@@ -178,6 +176,8 @@ class GamePresenter(
         val dialog = currentDialog ?: run {
             return
         }
+        game.historyOfTurns.add(dialog.getCurrentLog())
+
         when (state) {
             DialogState.GUESSED -> {
                 val cards = dialog.getGuessedCards()
@@ -222,11 +222,17 @@ class GamePresenter(
         val winners = game.players.filter { it.quantityOfBoxes == maxBoxes }
         game.winner = winners.firstOrNull()
 
-        // записываем игроков в реестр
+        // записываем игроков в базу данных
         game.players.forEach { player ->
             val isWinner = winners.any { it.name == player.name }
-            playerRegistry.recordGame(player.name, isWinner)
+            repository.recordPlayerGame(player.name, isWinner)
         }
+        // запись игры в базу данных
+        val playersStr = game.players.joinToString(", ") { it.name }
+        val historyStr = game.historyOfTurns.joinToString(" | ")
+        repository.saveGame(game.id, game.winner?.name, playersStr, historyStr)
+
+        //---------------------------------------------------------------
 
         val resultMessage = buildString {
             append("🏆 ИГРА ОКОНЧЕНА 🏆\n\n")
@@ -318,7 +324,8 @@ class GamePresenter(
     }
 
     override fun onGameInitialized(playerNames: List<String>, cards: MutableList<Card>) {
-
+        game.id = repository.getNextGameId()
+        game.historyOfTurns.clear()
         game.players.clear()
         game.mainDeck = Deck()
         game.status = GameStatus.WAITING
@@ -338,9 +345,19 @@ class GamePresenter(
         currentTargetIndex = 1
 
         view.updateGameState(game.players, game.players.getOrNull(0), game.players.getOrNull(1))
+        startTurn(game.players[0], game.players[1])
 
     }
+
     override fun onMenuRequested() {
-        view.showPlayerRegistry(playerRegistry.getAllSorted())
     }
+
+    override fun onHistoryRequested() {
+        val games = repository.getGameHistory()
+        val formatted = games.map { g ->
+            "🎲 Игра #${g.id} | 📅 ${g.date.split("T")[0]} | 🏆 ${g.winner ?: "Ничья"} | 👥 ${g.players}"
+        }
+        view.showGameHistory(formatted)
+    }
+
 }

@@ -350,6 +350,8 @@ class GamePresenter(
     }
 
     override fun onMenuRequested() {
+        val stats = repository.getPlayerStatsSorted()
+        view.showPlayerRegistry(stats)
     }
 
     override fun onHistoryRequested() {

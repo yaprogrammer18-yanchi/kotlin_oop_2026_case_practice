@@ -6,7 +6,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
-@DisplayName("Тесты колоды (Deck)")
+@DisplayName("Тесты колоды")
 class DeckTest {
     private lateinit var deck: Deck
     private val cardA = Card(Nominal.SIX, Suit.HEARTS)

@@ -5,7 +5,7 @@
 
 Правила игры:
 
-Каждому игроку раздается по 4-7 карт
+Каждому игроку раздается по 4 карты
 Игра идет по кругу
 Есть закрытая (общая) колода
 
@@ -37,291 +37,289 @@
 #### Диаграммы классов 
 ```mermaid
 classDiagram
-%% ===== ENUMS =====
-class GameStatus {
-<<enumeration>>
-WAITING
-IN_PROGRESS
-PAUSED
-FINISHED
-}
-    class DialogState {
-        <<enumeration>>
-        ASK_NOMINAL
-        ANSWER_NOMINAL
-        ASK_QUANTITY
-        ANSWER_QUANTITY
-        ASK_SUITS
-        ANSWER_SUITS
-        GUESSED
-        NOT_GUESSED
-        ASK_AGAIN
-        ANSWER_AGAIN
-        ERROR_QUESTION
-        ERROR
-    }
+    direction TB
 
-    class Answer {
-        <<enumeration>>
-        +val displayName: String
-        YES
-        NO
-        +fun fromDisplayName(displayName: String?): Answer?
-    }
+    %% ==================== STYLES ====================
+    classDef domain fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
+    classDef dialog fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef ui fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
+    classDef enum fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#000,font-style:italic
+
+    %% ==================== DOMAIN MODEL ====================
+    subgraph Domain Model
+        class Card {
+            +nominal: Nominal
+            +suit: Suit
+        }
+        class Player {
+            -name: String
+            -hand: MutableList~Card~
+            -quantityOfBoxes: Int
+            +addCardsInHand(cards: List~Card~) void
+            +removeCardsFromHand(cards: List~Card~) void
+            -manageBoxes() void
+        }
+        class Deck {
+            -cards: MutableList~Card~
+            +size: Int
+            +deckIsEmpty() Boolean
+            +getCards(quantity: Int) List~Card~
+            +initialiseDeck(cardsInRealDeck: MutableList~Card~) void
+        }
+        class Game {
+            +id: Int
+            -status: GameStatus
+            -players: MutableList~Player~
+            -mainDeck: Deck
+            +winner: Player
+            +historyOfTurns: MutableList~String~
+            +addPlayer(player: Player) void
+            +initialiseNewDeck(cards: MutableList~Card~) void
+            +initialisation(cardsPerPlayer: Int) void
+        }
+        class GameStatus {
+            <<enumeration>>
+            WAITING
+            IN_PROGRESS
+            FINISHED
+        }
+        class Suit {
+            <<enumeration>>
+            HEARTS
+            DIAMONDS
+            CLUBS
+            SPADES
+        }
+        class Nominal {
+            <<enumeration>>
+            SIX
+            SEVEN
+            EIGHT
+            NINE
+            TEN
+            JACK
+            QUEEN
+            KING
+            ACE
+        }
+    end
+
+    %% ==================== DIALOG & PHASE SYSTEM ====================
+    subgraph Dialog Phase System
+        class DialogState {
+            <<enumeration>>
+            ASK_NOMINAL
+            ANSWER_NOMINAL
+            ASK_QUANTITY
+            ANSWER_QUANTITY
+            ASK_SUITS
+            ANSWER_SUITS
+            GUESSED
+            NOT_GUESSED
+            ASK_AGAIN
+            ANSWER_AGAIN
+            ERROR_QUESTION
+            ERROR
+        }
+        class Answer {
+            <<enumeration>>
+            YES
+            NO
+        }
+        class Dialog {
+            +asker: Player
+            +target: Player
+            -currentPhase: Phase
+            -resultCards: List~Card~
+            +submitInput(input: List~Int~, isAsker: Boolean) DialogState
     
-    class Suit {
-        <<enumeration>>
-        +val displayName: String
-        HEARTS
-        DIAMONDS
-        CLUBS
-        SPADES
-        +fun fromDisplayName(displayName: String?): Suit?
-    }
-    
-    class Nominal {
-        <<enumeration>>
-        +val displayName: String
-        SIX
-        SEVEN
-        EIGHT
-        NINE
-        TEN
-        JACK
-        QUEEN
-        KING
-        ACE
-        +fun fromDisplayName(displayName: String?): Nominal?
-    }
-    
-    %% ===== DOMAIN CLASSES =====
-    class Card {
-        +val nominal: Nominal
-        +val suit: Suit
-    }
-    
-    class Player {
-        +val name: String
-        +val hand: MutableList~Card~
-        +var quantityOfBoxes: Int «private set»
-        +fun addCardsInHand(cards: List~Card~): Unit
-        -fun countBoxesInHand(): Int
-        -fun removeBoxesFromHand(): Unit
-        -fun manageBoxes(): Unit
-        +fun removeCardsFromHand(cards: List~Card~): Unit
-        +fun getCardsByNominal(nominal: Nominal): List~Card~
-        +fun getCardsBySuit(suit: Suit): List~Card~
-    }
-    
-    class Deck {
-        +var cards: MutableList~Card~
-        +val size: Int
-        +fun deckIsEmpty(): Boolean
-        +fun getCards(quantity: Int): List~Card~
-        +fun initialiseDeck(cardsInRealDeck: MutableList~Card~): Unit
-    }
-    
-    %% ===== GAME LOGIC CLASSES =====
-    class Dialog {
-        +var asker: Player
-        +var target: Player
-        +var assumeNominal: Nominal?
-        +var answerForNominal: Answer?
-        +var assumeQuantity: Int
-        +var realQuantity: Int
-        +var answerForQuantity: Answer?
-        +var assumeSuits: List~Suit~
-        +var realSuits: List~Suit~
-        +var answerForSuits: Answer?
-        +var guessedCards: List~Card~
-        +var state: DialogState
-        +var guessedNominal: Boolean
-        +var guessedQuantity: Boolean
-        +var guessedSuits: Boolean
-        +fun questionNominal(nominal: Nominal?): DialogState
-        +fun answerNominal(answer: Answer?): DialogState
-        +fun checkNominalValidation(player: Player): Boolean
-        +fun questionQuantity(quantity: Int): DialogState
-        +fun answerQuantity(answer: Answer?): DialogState
-        +fun checkQuantityValidation(player: Player, assumquantity: Int): Boolean
-        +fun questionSuits(suits: List~Suit~): DialogState
-        +fun answerSuits(answer: Answer?): DialogState
-        +fun checkSuitsValidationForTarget(): Boolean
-        +fun checkSuitsValidationForAsker(): Boolean
-        +fun suitsToGive(): Unit
-    }
-    
-    class Turn {
-        +val dialog: Dialog?
-        +fun toLogString(): String
-    }
-    
-    class Game {
-        +val id: Int
-        -var status: GameStatus
-        +val players: MutableList~Player~
-        +var mainDeck: Deck
-        +var currentAskerPlayerIndex: Int «private set»
-        -var currentTargetPlayerIndex: Int
-        -var currentTurn: Turn?
-        +var winner: Player? «private set»
-        +val historyOfTurns: MutableList~Turn~
-        -var currentDialog: Dialog?
-        +fun addPlayer(player: Player): Unit
-        +fun isEmptyDeck(): Boolean
-        +fun forceEndGame(): Unit
-        +fun initialiseNewDeck(): Unit
-        +fun initialisation(cardsPerPlayer: Int = 4): Unit
-        +fun runTurn(): Unit
-        +fun runGame(): Unit
-    }
-    
-    %% ===== RELATIONSHIPS =====
-    Game "1" *-- "2..*" Player : contains
-    Game "1" *-- "1" Deck : owns
-    Game "1" *-- "0..*" Turn : historyOfTurns
-    Game "1" o-- "0..1" Dialog : currentDialog
-    Game ..> GameStatus : status
-    
-    Player "1" *-- "0..*" Card : hand
-    Player ..> Nominal : filter by
-    Player ..> Suit : filter by
-    
-    Deck "1" *-- "0..*" Card : cards
-    
-    Dialog "1" --> "2" Player : asker & target
-    Dialog ..> DialogState : state machine
-    Dialog ..> Answer : validation
-    Dialog ..> Nominal : guess nominal
-    Dialog ..> Suit : guess suits
-    Dialog "1" *-- "0..*" Card : guessedCards
-    
-    Turn "1" o-- "0..1" Dialog : logs dialog
-    
-    Card --> Nominal : has nominal
-    Card --> Suit : has suit
+        }
+        class Phase {
+            <<abstract>>
+            +communicate(arr: List~Int~, pl: Player) Phase
+            +checkValidation(player: Player, instance: Int) Boolean
+            +toLogString() String
+        }
+        class NominalQuestion {
+            +asker: Player
+            +target: Player
+            -nominal: Nominal
+        }
+        class NominalAnswer {
+            +askedNominal: Nominal
+            +asker: Player
+            +target: Player
+            -answerForNominal: Answer
+        }
+        class QuantityQuestion {
+            +asker: Player
+            +target: Player
+            -askedNominal: Nominal
+            -assumeQuantity: Int
+        }
+        class QuantityAnswer {
+            +asker: Player
+            +target: Player
+            -askedNominal: Nominal
+            -assumeQuantity: Int
+            -realQuantity: Int
+        }
+        class SuitsQuestion {
+            +asker: Player
+            +target: Player
+            -askedNominal: Nominal
+            -askedQuantity: Int
+            -askedSuits: List~Suit~
+        }
+        class SuitsAnswer {
+            +asker: Player
+            +target: Player
+            -askedNominal: Nominal
+            -askedQuantity: Int
+            -askedSuits: List~Suit~
+            -guessedCards: List~Card~
+            +getGuessedCards() List~Card~
+        }
+    end
+
+    %% ==================== MVP LAYER ====================
+    subgraph MVP UI Layer
+        class GameView {
+            <<interface>>
+            +showNominalQuestionInput() void
+            +showQuantityQuestionInput(maxQuantity: Int) void
+            +showSuitsQuestionInput(availableSuits: List~String~) void
+            +showAnswerDialog(message: String) void
+            +showMessage(message: String) void
+            +showGameSetup() void
+            +showMenu() void
+            +showPlayerStats(stats: Map~String,Int~) void
+            +showGameHistory(history: List~String~) void
+            +setListener(listener: GameViewListener) void
+            +close() void
+        }
+
+        class GameViewImpl {
+            -listener: GameViewListener
+            -cardLayout: CardLayout
+            -mainPanel: JPanel
+            -quantitySpinner: JSpinner
+            -suitsCheckboxes: List~JCheckBox~
+            -answerLabel: JLabel
+            -messageLabel: JLabel
+            -statsTextArea: JTextArea
+            -historyListModel: DefaultListModel~String~
+            -statusLabel: JLabel
+            -playersPanel: JPanel
+            -deckSizeLabel: JLabel
+        }
+        class GameViewListener {
+            <<interface>>
+            +onNominalQuestionSubmitted(nominal: Nominal) void
+            +onQuantityQuestionSubmitted(quantity: Int) void
+            +onSuitsQuestionSubmitted(suits: List~Suit~) void
+            +onAnswerSubmitted(answer: Answer) void
+            +onGameInitialized(playerNames: List~String~, cards: MutableList~Card~) void
+            +onMenuRequested() void
+        }
+        class Presenter {
+            -game: Game
+            -view: GameView
+            -currentDialog: Dialog
+            -currentAsker: Player
+            -currentTarget: Player
+            -currentAskerIndex: Int
+            -currentTargetIndex: Int
+            -isFinalRound: Boolean
+            -finalRoundTurns: MutableList~Pair~
+            -currentFinalTurnIndex: Int
+            +startTurn(asker: Player, target: Player) void
+            +handleDialogResult(state: DialogState) void
+            +nextTurn() void
+            +finishGame() void
+            +runFinalRound() void
+        }
+    end
+
+    %% ==================== RELATIONSHIPS ====================
+    %% Domain
+    Card --> Nominal
+    Card --> Suit
+    Deck "1" *-- "*" Card : contains
+    Player "1" *-- "*" Card : hand
+    Game "1" *-- "*" Player : manages
+    Game "1" *-- "1" Deck : main
+    Game --> GameStatus : tracks
+    Game "1" o-- "0..1" Dialog : active turn
+
+    %% Phase Hierarchy
+    Phase <|-- NominalQuestion
+    Phase <|-- NominalAnswer
+    Phase <|-- QuantityQuestion
+    Phase <|-- QuantityAnswer
+    Phase <|-- SuitsQuestion
+    Phase <|-- SuitsAnswer
+
+    %% Dialog Internal
+    Dialog "1" *-- "0..1" Phase : current
+    Dialog --> DialogState : returns
+    Dialog --> Answer : parses
+    Dialog ..> Card : yields result
+
+    NominalQuestion --> Nominal
+    NominalAnswer --> Nominal
+    NominalAnswer --> Answer
+    QuantityQuestion --> Nominal
+    QuantityAnswer --> Nominal
+    QuantityAnswer --> Answer
+    SuitsQuestion --> Nominal
+    SuitsQuestion --> Suit
+    SuitsAnswer --> Nominal
+    SuitsAnswer --> Suit
+    SuitsAnswer --> Card : guessed
+
+    %% MVP Wiring
+    GameView <|.. GameViewImpl : implements
+    GameViewListener <|..Presenter : implements
+    GameViewImpl ..> GameViewListener : delegates
+    Presenter --> Game : controls
+    Presenter --> GameView : updates
+    Presenter "1" o-- "0..1" Dialog : orchestrates
+    Presenter --> Player : observes
 ```
 
 ## Описание архитектуры
 
-### 1. Game — главный управляющий класс
-Управляет всей партией: от начала до завершения.
+Приложение построено по паттерну **MVP (Model-View-Presenter)**
 
-#### Поля
-- `id` — идентификатор игры
-- `status` — состояние (ожидание, идёт, пауза, завершена)
-- `mainDeck: Deck` — основная колода
-- `players: List<Player>` — список игроков (меняется редко)
-- `currentPlayer: Int` — индекс текущего игрока
-- `cardsQuantity` — сколько карт в начале игры
-- `currentTurn: Turn` — текущий ход
-- `winner` — победитель
-- `historyOfTurns: MutableList<Turn>` — история всех ходов
+### Ключевые компоненты
 
-#### Методы
-- `isEmptyDeck()` — проверка, не пуста ли колода
-- `checkWinCondition()` — проверка победы
-- `forceEndGame()` — принудительное завершение (для админа)
-- `nextTurn()` — переключение на следующий ход
-- `initialisation()` — подготовка игры перед стартом
+#### Domain Model (Доменная модель)
+Чистый слой, не зависящий от UI. Содержит сущности и правила игры.
+- `Card`, `Suit`, `Nominal` – данные карты, масти и номиналы. Чистые data-классы и enum.
+- `Player` – управляет рукой игрока. Автоматически подсчитывает собранные сундуки (`quantityOfBoxes`) и удаляет полные наборы из руки.
+- `Deck` – управляет колодой: инициализация, раздача, взятие карт (`getCards`).
+- `Game` – контейнер состояния игры: список игроков, колода, статус (`GameStatus`), история ходов.
 
-**Что делает Game:**
-- вызывает Turn
-- отвечает за смену ходов
-- хранит победителя
-- в завершении игры от объекта Game собирается статистика
+#### Система ходов
+Реализована через паттерн **State/Phase**. Каждый шаг хода инкапсулирован в отдельный класс.
+- `Phase` – абстрактный базовый класс. Определяет контракт: `communicate()` (обработка ввода),
+- `checkValidation()` (проверка правил),
+- `toLogString()` (лог хода).
 
----
-
-### 2. Player — игрок
-
-#### Зачем нужен
-Хранит состояние одного игрока.
-
-#### Поля
-- `name`
-- `hand: MutableList<Card>` — карты на руке
-- `quantityOfBoxes` — сколько сундуков заработал
-
-#### Методы
-- `countBoxes()` — пересчёт сундуков
-- `addCardsInHand(cards, quantity)`
-- `removeCardsFromHand(cards, quantity)`
-
----
-
-### 3. Deck — колода
-
-#### Зачем нужна
-Управляет картами в игре.
-
-#### Поля
-- `cards: List<Card>` — карты в колоде
-- `allCards` — общее количество
-- `currentQuantity` — сколько осталось
-
-#### Метод
-- `getCard(quantity: Int): List<Card>` — получить N карт (для раздачи или перемещения)
----
-
-## 4. Card — карта
-
-### Поля
-- `nominal` — 6,7,8…Ace
-- `suit` — масть
-
----
-
-### 5. Turn — ход (самый важный класс)
-
-- знает, кто спросил
-- кто ответил
-- какой был вопрос / ответ
-- успешен ли ход
-- какие карты перемещаются
-
-#### Поля
-- `askingPlayer` — кто спросил
-- `answeringPlayer` — кого спросили
-- `question: Question?`
-- `answer: Answer?`
-- `isCompleted` — завершён ли ход
-- `successful` — успешен (получил сундук или нет)
-- `moveCards: MutableList<Card>` — карты, которые перемещаются в ходе
-
-#### Методы (логика хода)
-- `checkNominal(q, a)` — совпадает ли номинал
-- `checkQuantity(q, a)` — совпадает ли количество
-- `checkSuits(q, a)` — проверка мастей
-- `isEnoughCards()` — достаточно ли карт у отвечающего
-- `getResultFromQuestionAndAnswer()` — итоговый результат хода
-- `moveCards(askingPlayer, answeringPlayer, cards)` — перемещение карт
-
-(как только какой-то из методов проверок возвращает false (спрашивающий игрок не
-угадал, то successful становится fasle, далее вызывается askingPlayer.getCardFromDeck), если игрок все же 
-угадал, то successful становится true, далее вызывается moveCards, внутри которого вызываются методы
-обмена картами из класса Player)
----
-
-### 6. Dialog
-Поля:
-- `nominal`
-- `quantity`
-- `suits: List<String>`
+- `Dialog` – менеджер фаз. Хранит текущую `Phase`, делегирует ей ввод игрока и возвращает `DialogState` для Presenter.
+- Наследники `Phase` (`NominalQuestion`, `QuantityAnswer`, `SuitsAnswer` и др.) – содержат логику конкретного шага, правила валидации и переход к следующей фазе или `null` при завершении хода.
+  Если игрок не угадывает, то возвращается null, а если null возвращается после фазы AnswerSuits, то проверяется список передаваемых карт и если он не пустой, то это значит, что игрок выиграл
 
 
+#### Presenter (`Presenter` + `GameViewListener`)
+Координатор приложения. Связывает UI и модель.
+- `GameViewListener` – интерфейс колбэков от UI.
+- `Presenter` – реализует слушатель, управляет жизненным циклом `Game` и `Dialog`, принимает решения (`handleDialogResult`), маршрутизирует ходы (`nextTurn`, `runFinalRound`), обрабатывает условия победы, также добирает карты игрокам, когда возникают какие-то проблемы + определяет кто ходит следующим (тоже зависит от состояния руки игрока)
+- При получении нового состояния из Dialog, запрашивает изменения у View (точнее буквально говорит ей что делать)
 
-#### Логика работы Game-Turn-Dialog
-Game вызывает метод nextTurn(), 
-который в свою очередь создает объект класса Turn
-
-Game создает объект диалога, который заполняется от внешнего взаимодействия (пользователь тыкает на кнопочки)
-
-Что делает Turn:
-он хранит историю в письменном виде (кто что спросил, угадал, не угадал, какие карты перешли или же 
-была взята какая то (какая?) карта из колоды), game просто передает туда dialog и turn формирует строчку в истории
-
-
-Сам Dialog только проверяет валидность заданного вопроса и полученного ответа (фильтр на блеф)
-и также определяет дальнейшие действия игроков (формирует список карт, которые надо передать) или же
-информация о том, что надо взять карту из колоды
+#### View (`GameView` + `GameViewImpl`)
+Swing-интерфейс. Отвечает исключительно за отображение и сбор ввода.
+- `GameView` – контракт для UI.
+- `GameViewImpl` – реализация на Swing (`CardLayout`, панели, кнопки, спиннеры). Делегирует события в `GameViewListener`. **Не знает про правила игры и модель.**
+- немного "тупой" класс, просто знает что и как отрисовывать и на что реагировать. Все action(ы) которые делает пользователь (нажимает на кнопочки) анализирует и в нужном виде отправляет в Presenter

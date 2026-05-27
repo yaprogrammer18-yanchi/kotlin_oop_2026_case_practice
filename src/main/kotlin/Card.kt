@@ -33,5 +33,5 @@ companion object {
     fun fromDisplayName(displayName: String?): Nominal? {
         return values().find { it.displayName.equals(displayName, ignoreCase = true) }
     }
-}
+  }
 }

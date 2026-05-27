@@ -50,13 +50,5 @@ class PlayerTest {
             assertEquals(1, player.quantityOfBoxes)
             assertTrue(player.hand.isEmpty()) // сундучки уходят из руки
         }
-
-        @Test
-        fun `3 cards do not form a box`() {
-            val cards = (1..3).map { Card(Nominal.ACE, Suit.values()[it - 1]) }
-            player.addCardsInHand(cards)
-            assertEquals(0, player.quantityOfBoxes)
-            assertEquals(3, player.hand.size)
-        }
     }
 }

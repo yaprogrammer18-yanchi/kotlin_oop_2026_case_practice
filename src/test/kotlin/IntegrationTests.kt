@@ -1,40 +1,14 @@
 package boxGame
 
 import org.junit.jupiter.api.*
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 class GameTests2 {
 
-    private val originalIn = System.`in`
-    private val originalOut = System.out
-    private lateinit var outContent: ByteArrayOutputStream
-
-    @BeforeEach
-    fun setUpStreams() {
-        outContent = ByteArrayOutputStream()
-        System.setOut(PrintStream(outContent))
-    }
-
-    @AfterEach
-    fun restoreStreams() {
-        System.setIn(originalIn)
-        System.setOut(originalOut)
-    }
-
-    private fun simulateInput(vararg lines: String) {
-        val input = lines.joinToString("\n") + "\n"
-        System.setIn(ByteArrayInputStream(input.toByteArray()))
-    }
-
-
     @Test
     fun `test_initialisationDistributesCardsCorrectly`() {
-        // Arrange
         val game = Game(id = 1)
         val p1 = Player("Alice")
         val p2 = Player("Bob")

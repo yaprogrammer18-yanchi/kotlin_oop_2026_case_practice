@@ -241,6 +241,41 @@ classDiagram
         }
     end
 
+    subgraph Data Persistence Layer
+        class GameRepository {
+            <<interface>>
+            +getNextGameId() Int
+            +recordPlayerGame(name: String, isWinner: Boolean) void
+            +getPlayerStatsSorted() List~PlayerStats~
+            +saveGame(id: Int, winner: String?, players: String, movesHistory: String) void
+            +getGameHistory() List~GameEntry~
+        }
+        class SqliteGameRepository {
+            +getNextGameId() Int
+            +recordPlayerGame(...) void
+            +saveGame(...) void
+            +getGameHistory() List~GameEntry~
+        }
+        class DatabaseManager {
+            <<object>>
+            +dbUrl: String
+            +getConnection() Connection
+            -createTables(conn: Connection) void
+        }
+        class PlayerStats {
+            +name: String
+            +gamesPlayed: Int
+            +wins: Int
+        }
+        class GameEntry {
+            +id: Int
+            +date: String
+            +winner: String?
+            +players: String
+            +movesHistory: String
+        }
+    end
+
     %% ==================== RELATIONSHIPS ====================
     %% Domain
     Card --> Nominal
@@ -286,6 +321,13 @@ classDiagram
     Presenter --> GameView : updates
     Presenter "1" o-- "0..1" Dialog : orchestrates
     Presenter --> Player : observes
+
+ GameRepository <|.. SqliteGameRepository : implements
+    SqliteGameRepository --> DatabaseManager : uses
+    DatabaseManager --> boxgame.db : reads/writes
+    Presenter --> GameRepository : persists data & stats
+    GameRepository ..> PlayerStats : returns
+    GameRepository ..> GameEntry : returns
 ```
 
 ## Описание архитектуры

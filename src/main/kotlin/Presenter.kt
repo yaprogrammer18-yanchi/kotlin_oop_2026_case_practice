@@ -338,6 +338,7 @@ class GamePresenter(
         currentTargetIndex = 1
 
         view.updateGameState(game.players, game.players.getOrNull(0), game.players.getOrNull(1))
+        startTurn(game.players[0], game.players[1])
 
     }
     override fun onMenuRequested() {

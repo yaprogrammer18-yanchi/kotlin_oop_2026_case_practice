@@ -18,7 +18,7 @@ interface GameView {
     fun setListener(listener: GameViewListener)
     fun close()
     fun updateGameState(players: List<Player>, currentAsker: Player?, currentTarget: Player?)
-    fun updateDeckSize(deckSize: Int)  // ← добавить
+    fun updateDeckSize(deckSize: Int)
     fun clearGameState()
 }
 
@@ -35,7 +35,7 @@ class GameViewImpl : JFrame(), GameView {
     private lateinit var cardsListModel: DefaultListModel<String>
     private lateinit var statusLabel: JLabel
     private lateinit var playersPanel: JPanel
-    private lateinit var deckSizeLabel: JLabel  // ← для отображения карт в колоде
+    private lateinit var deckSizeLabel: JLabel
 
     init {
         initFrame()

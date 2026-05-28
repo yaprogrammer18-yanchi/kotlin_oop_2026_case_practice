@@ -1,4 +1,5 @@
 package boxGame
+
 enum class DialogState {
     // Номинал
     ASK_NOMINAL,
@@ -19,26 +20,7 @@ enum class DialogState {
     // Ошибки
     ASK_AGAIN,
     ANSWER_AGAIN,
-    ERROR_QUESTION,
     ERROR;
-
-    // Метод для отображения состояния
-    fun displayMessage(dialog: Dialog): String {
-        return when (this) {
-            ASK_NOMINAL -> "Какой номинал карт вы спрашиваете?"
-            ANSWER_NOMINAL -> "${dialog.target.name}, у вас есть карты номинала ${dialog.assumeNominal?.displayName ?: "?"}? (YES/NO)"
-            ASK_QUANTITY -> "Сколько карт номинала ${dialog.assumeNominal?.displayName} у вас есть?"
-            ANSWER_QUANTITY -> "${dialog.target.name}, действительно ли у вас ${dialog.assumeQuantity} карт номинала ${dialog.assumeNominal?.displayName}? (YES/NO)"
-            ASK_SUITS -> "Какие масти карт номинала ${dialog.assumeNominal?.displayName} вы угадываете? (введите масти через пробел)"
-            ANSWER_SUITS -> "${dialog.target.name}, у вас есть карты мастей ${dialog.assumeSuits.joinToString { it.displayName }}? (YES/NO)"
-            GUESSED -> "✓ УГАДАНО! Карты передаются ${dialog.asker.name}"
-            NOT_GUESSED -> "✗ НЕ УГАДАНО! ${dialog.asker.name} берёт карту из колоды"
-            ASK_AGAIN -> "Блеф!"
-            ANSWER_AGAIN -> "Блеф!"
-            ERROR_QUESTION -> "⚠️ Ошибка вопроса"
-            ERROR -> "⚠️ Критическая ошибка"
-        }
-    }
 }
 
 enum class Answer(val displayName: String){
@@ -52,170 +34,77 @@ enum class Answer(val displayName: String){
 
 }
 
-class Dialog(var asker: Player, var target: Player) {
-    var assumeNominal: Nominal? = null
-    var answerForNominal: Answer? = null
-    var assumeQuantity: Int = 0
-    var realQuantity: Int = 0
-    var answerForQuantity: Answer? = null
-    var assumeSuits: List<Suit> = listOf()
-    var realSuits: List<Suit> = listOf()
-    var answerForSuits: Answer? = null
+// Dialog - менеджер Phase, он просто знает, что с ними делать
+// возвращает статусы, на которые реагирует ViewModel
 
-    var guessedCards: List<Card> = emptyList()
-    var state = DialogState.ASK_NOMINAL
+class Dialog(
+    val asker: Player,
+    val target: Player
+) {
+    private var currentPhase: Phase? = NominalQuestion(asker, target)
+    private var resultCards: List<Card> = emptyList()
+    private var isFinished = false
+    private var isSuccess = false
 
-    var guessedNominal = false
-    var guessedQuantity = false
-    var guessedSuits = false
+    // Отправить ввод и получить состояние для View
+    // возвращает DialogState
+    fun submitInput(input: List<Int>, isAsker: Boolean = false): DialogState {
+        if (currentPhase == null) return DialogState.NOT_GUESSED
+        val player = if (isAsker) asker else target
+        val nextPhase = currentPhase?.communicate(input, player)
 
-
-    fun questionNominal(nominal: Nominal?): DialogState
-    {
-        if (state == DialogState.ASK_NOMINAL) {
-            assumeNominal = nominal
-            val isCorrect = checkNominalValidation(asker)
-            if (isCorrect) {
-                state = DialogState.ANSWER_NOMINAL
-                return DialogState.ANSWER_NOMINAL
-            }
-            state = DialogState.ASK_NOMINAL
-            return DialogState.ASK_AGAIN
+        if (currentPhase is SuitsAnswer && nextPhase == null) {
+            val suitsAnswer = currentPhase as SuitsAnswer
+            resultCards = suitsAnswer.getGuessedCards()
+            isSuccess = resultCards.isNotEmpty()
+            isFinished = true
+            currentPhase = null
+            return if (isSuccess) DialogState.GUESSED else DialogState.NOT_GUESSED
         }
-        return DialogState.ERROR_QUESTION
-    }
 
-    fun answerNominal(answer: Answer?): DialogState{
-        answerForNominal = answer
-        val haveNominal: Boolean = checkNominalValidation(target)
-            if (haveNominal && (answerForNominal == Answer.YES)){
-                state = DialogState.ASK_QUANTITY
-                guessedNominal = true
-                return DialogState.ASK_QUANTITY
-            }
-            if (!haveNominal && (answerForNominal == Answer.NO)){
-                state = DialogState.NOT_GUESSED
-                guessedNominal = false
-                return DialogState.NOT_GUESSED
-            }
-    return DialogState.ANSWER_AGAIN
-    }
-
-    fun checkNominalValidation(player: Player): Boolean{
-        val arr: List<Card> = player.getCardsByNominal(assumeNominal!!)
-        return arr.isNotEmpty()
-    }
-
-    // РАБОТА С КОЛИЧЕСТВОМ
-    fun questionQuantity(quantity: Int): DialogState {
-        if (state != DialogState.ASK_QUANTITY) return DialogState.ERROR_QUESTION
-        assumeQuantity = quantity
-        state = DialogState.ANSWER_QUANTITY
-        return DialogState.ANSWER_QUANTITY
-    }
-
-    fun answerQuantity(answer: Answer?): DialogState {
-        if (state != DialogState.ANSWER_QUANTITY) return DialogState.ERROR_QUESTION
-        answerForQuantity = answer
-        val isValid = checkQuantityValidation(target, assumeQuantity)
-        if (isValid && answer == Answer.YES) {
-            state = DialogState.ASK_SUITS
-            guessedQuantity = true
-            return DialogState.ASK_SUITS
-        }
-        else if (isValid && answer == Answer.NO){
-            guessedQuantity = false
+        if (nextPhase == null) {
+            isFinished = true
+            currentPhase = null
             return DialogState.NOT_GUESSED
         }
-        return DialogState.ANSWER_AGAIN
+
+        currentPhase = nextPhase
+        return getCurrentState()
     }
 
-    fun checkQuantityValidation(player: Player, assumquantity: Int): Boolean {
-        // реальное кол-во карт нужного номинала
-        val cardsCount = player.getCardsByNominal(assumeNominal!!).size
-        realQuantity = cardsCount
-        if (answerForQuantity == Answer.YES && cardsCount == assumquantity){
-            return true
+    // Какой сейчас вопрос нужно задать
+    // Фазы - статус, чтобы ViewModel реагировал
+    fun getCurrentState(): DialogState {
+        return when (currentPhase) {
+            is NominalQuestion -> DialogState.ASK_NOMINAL
+            is NominalAnswer -> DialogState.ANSWER_NOMINAL
+            is QuantityQuestion -> DialogState.ASK_QUANTITY
+            is QuantityAnswer -> DialogState.ANSWER_QUANTITY
+            is SuitsQuestion -> DialogState.ASK_SUITS
+            is SuitsAnswer -> DialogState.ANSWER_SUITS
+            else -> DialogState.ERROR
         }
-        if (answerForQuantity == Answer.NO && cardsCount != assumquantity){
-            return true
-        }
-        return false
     }
 
-
-// РАБОТА С МАСТЯМИ
-
-    fun questionSuits(suits: List<Suit>): DialogState {
-        if (state != DialogState.ASK_SUITS) return DialogState.ERROR_QUESTION
-        assumeSuits = suits
-        val isValid = checkSuitsValidationForAsker()
-
-        if (isValid) {
-            state = DialogState.ANSWER_SUITS
-            return DialogState.ANSWER_SUITS
+    fun getCurrentQuestion(): String {
+        return when (currentPhase) {
+            is QuantityQuestion -> "Сколько карт?"
+            is SuitsQuestion -> "Какие масти?"
+            else -> "Верно?"
         }
-        state = DialogState.ASK_SUITS
-        return DialogState.ASK_AGAIN
     }
 
-    fun answerSuits(answer: Answer?): DialogState {
-        if (state != DialogState.ANSWER_SUITS) return DialogState.ERROR_QUESTION
-        answerForSuits = answer
-        val isValid = checkSuitsValidationForTarget()
-
-        if (isValid && (answer == Answer.YES)) {
-            state = DialogState.GUESSED
-            guessedSuits = true
-            suitsToGive()
-            return DialogState.GUESSED
-        }
-
-        else if (isValid && (answer == Answer.NO)){
-            state = DialogState.NOT_GUESSED
-            guessedSuits = false
-            return DialogState.NOT_GUESSED
-        }
-        return DialogState.ANSWER_AGAIN
+    fun getMaxQuantity(): Int {
+        return if (currentPhase is QuantityQuestion) 4 else 0
     }
 
-    fun checkSuitsValidationForTarget(): Boolean {
-        val cards = target.getCardsByNominal(assumeNominal!!).map {it.suit}
-        realSuits = cards
-
-        if (realSuits.any { it in assumeSuits } && (answerForSuits == Answer.YES)){
-            return true
-        }
-
-        if (!(realSuits.any { it in assumeSuits }) && (answerForSuits == Answer.NO)){
-            return true
-        }
-        return false
+    fun getAvailableSuits(): List<String> {
+        return if (currentPhase is SuitsQuestion) {
+            Suit.values().map { it.displayName }
+        } else emptyList()
     }
 
-    fun checkSuitsValidationForAsker(): Boolean{
-        return assumeSuits.size == realQuantity
-    }
+    fun getCurrentLog(): String = currentPhase?.toLogString() ?: "Ход завершён"
 
-    fun suitsToGive() {
-        val matchedSuits = assumeSuits.intersect(realSuits).toList()
-        guessedCards = target.getCardsByNominal(assumeNominal!!).filter { it.suit in matchedSuits }
-    }
-
+    fun getGuessedCards(): List<Card> = resultCards
 }
-
-//// написать в чате, обсудить разделение диалога
-//
-//// ТО ЧТО   вводится через консоль вынести в view model то, как то, что отображатеся вляет на игровую логику
-//// то что вернется обратно во view model на это посмотрит view и отрисует себя
-//
-//// прочитать про
-//
-//// рассказ 23-го числа: про Game - Dialog - Dialog как работает внутри себя
-//// получается сделать Dialog еще одним движком, то есть разделить на три класса, отдельно каждый для номинала, кол-ва и масти
-//// все это наследники одного интерфейса, надо что-то подумать с аргументами, ведь они разные
-//// а как вариант - просто контейнер сделать, который можно передавать и каждый класс пусть берет оттуда те поля, которые ему
-//// нужны
-//// подкласс с полями?
-
-// в принципе можно отдельно прописывать уже GUI, а диалог разделить потом
